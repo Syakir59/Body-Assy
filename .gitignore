@@ -1,0 +1,8 @@
+.firebase/
+firebase-debug.log
+*.log
+github-index.html
+_andon-script.js
+node_modules/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ISUZU Bodyshop Andon Â· Master</title>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --bg-1: #020817;
+      --bg-2: #0b1220;
+      --panel: rgba(8, 15, 32, 0.88);
+      --panel-soft: rgba(15, 23, 42, 0.92);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e5eefc;
+      --muted: #94a3b8;
+      --green: #22c55e;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(46, 168, 255, 0.18), transparent 24%),
+        radial-gradient(circle at 88% 12%, rgba(34, 197, 94, 0.12), transparent 22%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.8), transparent 85%);
+    }
+
+    .screen {
+      width: 100%;
+      min-height: 100vh;
+      padding: 18px;
+    }
+
+    .tv-shell {
+      min-height: calc(100vh - 36px);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 18px;
+      padding: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 28px;
+      box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tv-shell::after {
+      content: "MASTER CONTROL";
+      position: absolute;
+      top: 14px;
+      right: 18px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #dbeafe;
+      opacity: 0.28;
+    }
+
+    .sync-badge {
+      position: absolute;
+      top: 14px;
+      left: 18px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(2, 8, 23, 0.72);
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+    }
+
+    .sync-badge.online .sync-dot {
+      background: #22c55e;
+      box-shadow: 0 0 10px rgba(34, 197, 94, 0.7);
+    }
+
+    .sync-badge.error .sync-dot {
+      background: #ef4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.7);
+    }
+
+    body.tv-mode .box-btn,
+    body.tv-mode .cycle-btn-row,
+    body.tv-mode .cycle-setting,
+    body.tv-mode .daily-save-btn,
+    body.tv-mode .spatter-actions,
+    body.tv-mode .spatter-row,
+    body.tv-mode .box-input,
+    body.tv-mode #dailyPlanInput {
+      display: none !important;
+    }
+
+    body.tv-mode .tv-shell::after {
+      content: "TV DISPLAY";
+    }
+
+    body.tv-mode .spatter-note {
+      display: none;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr auto;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .brand,
+    .clock-panel,
+    .status-banner,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 18px 22px;
+      min-height: 108px;
+      background:
+        linear-gradient(135deg, rgba(46, 168, 255, 0.12), rgba(255, 255, 255, 0.02)),
+        var(--panel);
+    }
+
+    .brand img {
+      width: 78px;
+      height: 78px;
+      object-fit: contain;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 10px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(28px, 3vw, 42px);
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    .brand p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: clamp(14px, 1.2vw, 18px);
+      letter-spacing: 0.5px;
+    }
+
+    .clock-panel {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 16px 18px;
+      min-height: 108px;
+      text-align: center;
+      background:
+        linear-gradient(180deg, rgba(110, 214, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        var(--panel-soft);
+    }
+
+    .clock-label,
+    .status-title {
+      text-transform: uppercase;
+    }
+
+    .clock-label {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 2px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .time-big {
+      font-size: clamp(30px, 3.2vw, 46px);
+      font-weight: 900;
+      line-height: 1;
+      color: #eff6ff;
+    }
+
+    .date-small {
+      margin-top: 8px;
+      font-size: clamp(14px, 1.1vw, 18px);
+      color: #cbd5e1;
+      font-weight: 700;
+    }
+
+    .status-banner {
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 14px 22px;
+      text-align: center;
+      background:
+        linear-gradient(135deg, rgba(34, 197, 94, 0.14), rgba(255, 255, 255, 0.02)),
+        var(--panel);
+    }
+
+    .status-title {
+      color: var(--muted);
+      font-size: 13px;
+      letter-spacing: 2px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    #statusDisplay {
+      font-size: clamp(28px, 2.8vw, 44px);
+      font-weight: 900;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: color 0.2s ease, text-shadow 0.2s ease;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      min-height: 0;
+    }
+
+    .plan-panel,
+    .actual-panel {
+      grid-column: span 1;
+    }
+
+    .difference-panel {
+      grid-column: span 1;
+    }
+
+    .daily-panel {
+      grid-column: span 1;
+    }
+
+    .panel {
+      min-height: 260px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 24%);
+      pointer-events: none;
+    }
+
+    .box-title {
+      position: relative;
+      z-index: 1;
+      font-size: 60px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: #dbeafe;
+      margin-bottom: 18px;
+    }
+
+    .box-input {
+      width: 100%;
+      max-width: 180px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .box-btn {
+      margin-top: 12px;
+      margin-bottom: 10px;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      font-size: 14px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+    }
+
+    .box-btn.reset {
+      background: linear-gradient(135deg, #475569, #64748b);
+    }
+
+    .cycle-btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      width: 100%;
+      max-width: 260px;
+    }
+
+    .cycle-btn {
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 0;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      font-size: 18px;
+    }
+
+    .cycle-btn.start {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+    }
+
+    .cycle-btn.stop {
+      background: linear-gradient(135deg, #dc2626, #ef4444);
+    }
+
+    .cycle-setting {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .cycle-setting input {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(2, 8, 23, 0.55);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 16px;
+    }
+
+    .cycle-setting button,
+    .daily-save-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #04111f;
+      background: linear-gradient(135deg, #38bdf8, #22d3ee);
+    }
+
+    .daily-save-btn {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .box-value {
+      position: relative;
+      z-index: 1;
+      font-size: clamp(80px, 10vw, 160px);
+      line-height: 1;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 8px 30px rgba(46, 168, 255, 0.12);
+    }
+
+    #differenceDisplay.positive {
+      color: #86efac;
+    }
+
+    #differenceDisplay.negative {
+      color: #fca5a5;
+    }
+
+    #differenceDisplay.neutral {
+      color: #e2e8f0;
+    }
+
+    .working-panel {
+      grid-column: span 1;
+    }
+
+    .spatter-panel {
+      grid-column: span 2;
+      align-items: stretch;
+      justify-content: center;
+      border-color: rgba(245, 158, 11, 0.55);
+    }
+
+    .spatter-panel .spatter-box {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      min-width: 0;
+      text-align: left;
+    }
+
+    .spatter-title {
+      font-size: clamp(18px, 1.25vw, 26px);
+      font-weight: 900;
+      letter-spacing: 1px;
+      color: #fbbf24;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .spatter-subtitle {
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .spatter-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .spatter-label {
+      color: #e5eefc;
+      font-size: 16px;
+      font-weight: 900;
+    }
+
+    .spatter-input {
+      width: 100%;
+      min-width: 0;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.42);
+      background: rgba(255,255,255,0.07);
+      color: white;
+      padding: 9px 10px;
+      font-size: 16px;
+      font-weight: 800;
+      text-align: left;
+    }
+
+    .spatter-input::placeholder {
+      color: rgba(226, 232, 240, 0.58);
+    }
+
+    .spatter-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .spatter-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 0;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+      color: white;
+    }
+
+    .spatter-btn.save {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+    }
+
+    .spatter-btn.reset {
+      background: linear-gradient(135deg, #475569, #64748b);
+    }
+
+    .spatter-divider {
+      height: 1px;
+      background: rgba(148, 163, 184, 0.28);
+      margin: 14px 0 10px;
+    }
+
+    .spatter-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 15px;
+      color: #e5eefc;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .spatter-total span {
+      color: #fbbf24;
+      font-size: 30px;
+      font-weight: 900;
+    }
+
+    .spatter-history-head {
+      display: grid;
+      grid-template-columns: 46px 1.1fr 1fr 52px 42px;
+      gap: 6px;
+      padding: 8px 4px 6px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
+    .spatter-history {
+      margin-top: 4px;
+      max-height: 118px;
+      overflow-y: auto;
+      padding-right: 4px;
+      font-size: 12px;
+    }
+
+    .spatter-history::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .spatter-history::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.35);
+      border-radius: 99px;
+    }
+
+    .history-item {
+      display: grid;
+      grid-template-columns: 46px 1.1fr 1fr 52px 42px;
+      gap: 6px;
+      align-items: center;
+      padding: 7px 4px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+      color: #e5eefc;
+      font-weight: 800;
+    }
+
+    .history-empty {
+      padding: 12px 0 4px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .history-qty {
+      color: #fbbf24;
+      font-weight: 900;
+      text-align: right;
+    }
+
+    .history-small {
+      color: #cbd5e1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .spatter-note {
+      margin-top: 7px;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+
+
+    .small-difference .box-title {
+      font-size: clamp(34px, 3.4vw, 54px);
+    }
+
+    .small-difference .box-value {
+      font-size: clamp(80px, 8vw, 130px);
+    }
+
+    .spatter-wide {
+      justify-content: flex-start;
+      padding-top: 18px;
+    }
+
+    .spatter-wide > .spatter-title {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 12px;
+    }
+
+    .spatter-duo {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .spatter-duo .spatter-box {
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .spatter-duo .spatter-subtitle {
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 1400px) {
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .status-banner {
+        min-width: 0;
+      }
+
+      .main-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .difference-panel {
+        grid-column: span 1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .screen {
+        padding: 10px;
+      }
+
+      .tv-shell {
+        min-height: auto;
+        padding: 12px;
+        border-radius: 20px;
+      }
+
+      .brand {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .plan-panel,
+      .actual-panel,
+      .daily-panel,
+      .difference-panel,
+      .working-panel,
+      .spatter-panel {
+        grid-column: span 1;
+      }
+
+      .spatter-duo {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        min-height: 200px;
+      }
+
+      .box-title {
+        font-size: 20px;
+      }
+
+      .box-value {
+        font-size: clamp(38px, 10vw, 60px);
+      }
+
+      .spatter-row {
+        grid-template-columns: 82px 1fr;
+      }
+    }
+  
+/* TV FIT ADJUSTMENT */
+body { zoom: 0.9; }
+.tv-shell { padding: 12px !important; }
+.panel { min-height: 220px !important; padding: 18px !important; }
+.box-title { font-size: clamp(40px, 4vw, 55px) !important; }
+
+</style>
+</head>
+<body>
+  <div class="screen">
+    <div class="tv-shell">
+      <div class="sync-badge" id="syncBadge"><span class="sync-dot"></span><span id="syncLabel">Connecting Firebase...</span></div>
+      <section class="topbar">
+        <div class="brand">
+          <div>
+            <h1>BODYSHOP DASHBOARD</h1>
+            <p>Factory Production Control Screen · Real-Time TV Display Layout</p>
+          </div>
+        </div>
+
+        <div class="clock-panel">
+          <div class="clock-label">Current Factory Time</div>
+          <div class="time-big" id="timeDisplay">00:00:00</div>
+          <div class="date-small" id="dateDisplay">--- --- -- ----</div>
+        </div>
+
+        <div class="status-banner">
+          <div class="status-title">Line Status</div>
+          <div id="statusDisplay">Line Stopped</div>
+        </div>
+      </section>
+
+      <section class="main-grid">
+        <div class="panel plan-panel">
+          <div class="box-title">Current Plan</div>
+          <div class="box-value" id="planCount">0</div>
+          <button class="box-btn reset" onclick="resetPlan()">Reset</button>
+        </div>
+
+        <div class="panel actual-panel">
+          <div class="box-title">Actual</div>
+          <div class="box-value" id="actualCount">0</div>
+          <button class="box-btn reset" onclick="resetActual()">Reset</button>
+        </div>
+
+        <div class="panel daily-panel">
+          <div class="box-title">Daily Plan</div>
+          <input type="number" id="dailyPlanInput" placeholder="Enter Plan" min="0" class="box-input" />
+          <button class="box-btn" onclick="setDailyPlan()">SET</button>
+          <div class="box-value" id="dailyPlanDisplay">0</div>
+        </div>
+
+        <div class="panel difference-panel small-difference">
+          <div class="box-title">Difference</div>
+          <div class="box-value neutral" id="differenceDisplay">0</div>
+        </div>
+
+        <div class="panel">
+          <div class="box-title">Cycle Timer</div>
+          <div class="box-value" id="cycleTimer">00:00</div>
+          <div class="cycle-btn-row">
+            <button class="cycle-btn start" onclick="startCycle()">Start</button>
+            <button class="cycle-btn stop" onclick="stopCycle()">Stop</button>
+          </div>
+          <div class="cycle-setting">
+            <input type="number" id="cycleMinutesInput" min="0.1" step="0.1" placeholder="14.3" />
+            <button type="button" onclick="setCycleTime()">Set Cycle</button>
+          </div>
+          <button class="daily-save-btn" type="button" onclick="saveDailyRecord()">Save Daily Record</button>
+        </div>
+
+        <div class="panel working-panel">
+          <div class="box-title">Working Time</div>
+          <div class="box-value" id="totalCycleTime">000</div>
+        </div>
+
+        <div class="panel spatter-panel spatter-wide" onclick="event.stopPropagation()">
+          <div class="spatter-title">Welding Spatter</div>
+          <div class="spatter-duo">
+            <div class="spatter-box">
+              <div class="spatter-subtitle">Back Panel</div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="spatterModelInput">Model</label>
+                <input type="text" id="spatterModelInput" class="spatter-input" placeholder="Model" />
+              </div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="spatterLotInput">Lot</label>
+                <input type="text" id="spatterLotInput" class="spatter-input" placeholder="Lot" />
+              </div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="spatterBodyInput">Body No.</label>
+                <input type="number" id="spatterBodyInput" class="spatter-input" placeholder="1-12" min="1" max="12" />
+              </div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="spatterInput">Qty</label>
+                <input type="number" id="spatterInput" class="spatter-input" placeholder="0" min="0" />
+              </div>
+
+              <div class="spatter-actions">
+                <button class="spatter-btn save" onclick="saveSpatter(event)">Save</button>
+                <button class="spatter-btn reset" onclick="resetSpatter(event)">Reset</button>
+              </div>
+
+              <div class="spatter-divider"></div>
+              <div class="spatter-total">Total Today <span id="spatterTotal">0</span></div>
+              <div class="spatter-history-head">
+                <span>Time</span><span>Model</span><span>Lot</span><span>Body</span><span>Qty</span>
+              </div>
+              <div class="spatter-history" id="spatterHistory">
+                <div class="history-empty">No record yet</div>
+              </div>
+              <div class="spatter-note">Synced live via Firebase for today</div>
+            </div>
+
+            <div class="spatter-box">
+              <div class="spatter-subtitle">Respot Floor</div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="respotModelInput">Model</label>
+                <input type="text" id="respotModelInput" class="spatter-input" placeholder="Model" />
+              </div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="respotLotInput">Lot</label>
+                <input type="text" id="respotLotInput" class="spatter-input" placeholder="Lot" />
+              </div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="respotBodyInput">Body No.</label>
+                <input type="number" id="respotBodyInput" class="spatter-input" placeholder="1-12" min="1" max="12" />
+              </div>
+
+              <div class="spatter-row">
+                <label class="spatter-label" for="respotInput">Qty</label>
+                <input type="number" id="respotInput" class="spatter-input" placeholder="0" min="0" />
+              </div>
+
+              <div class="spatter-actions">
+                <button class="spatter-btn save" onclick="saveRespot(event)">Save</button>
+                <button class="spatter-btn reset" onclick="resetRespot(event)">Reset</button>
+              </div>
+
+              <div class="spatter-divider"></div>
+              <div class="spatter-total">Total Today <span id="respotTotal">0</span></div>
+              <div class="spatter-history-head">
+                <span>Time</span><span>Model</span><span>Lot</span><span>Body</span><span>Qty</span>
+              </div>
+              <div class="spatter-history" id="respotHistory">
+                <div class="history-empty">No record yet</div>
+              </div>
+              <div class="spatter-note">Synced live via Firebase for today</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+
+  <script>
+    // Set true in TV_DISPLAY.html so this screen only mirrors Firebase.
+    const IS_TV = false;
+
+    const FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAr2quyRF_eHIubQGBpDlZbiE7_u-WnGtc",
+      authDomain: "body-assy-andon.firebaseapp.com",
+      databaseURL: "https://body-assy-andon-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "body-assy-andon",
+      storageBucket: "body-assy-andon.firebasestorage.app",
+      messagingSenderId: "945914150772",
+      appId: "1:945914150772:web:a520deca58b4897ea57621"
+    };
+
+    const LIVE_STATE_PATH = "andon/liveState";
+    const DEFAULT_CYCLE_SECONDS = 14 * 60 + 18;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const SPATTER_STORAGE_KEY = "isuzuBodyshopSpatterRecords_" + todayKey;
+    const RESPOT_STORAGE_KEY = "isuzuBodyshopRespotRecords_" + todayKey;
+    const syncClientId =
+      localStorage.getItem("BODY_ANDON_CLIENT_ID") ||
+      ("client_" + Math.random().toString(36).slice(2, 10));
+    localStorage.setItem("BODY_ANDON_CLIENT_ID", syncClientId);
+
+    const scheduleByDay = {
+      0: [],
+      1: [
+        { start: "08:15", stop: "10:00", name: "Morning Shift" },
+        { start: "10:20", stop: "13:00", name: "Midday Shift" },
+        { start: "14:00", stop: "17:20", name: "Afternoon Shift" }
+      ],
+      2: [
+        { start: "08:15", stop: "10:00", name: "Morning Shift" },
+        { start: "10:20", stop: "13:00", name: "Midday Shift" },
+        { start: "14:00", stop: "17:20", name: "Afternoon Shift" }
+      ],
+      3: [
+        { start: "08:15", stop: "10:00", name: "Morning Shift" },
+        { start: "10:20", stop: "13:00", name: "Midday Shift" },
+        { start: "14:00", stop: "17:20", name: "Afternoon Shift" }
+      ],
+      4: [
+        { start: "08:15", stop: "10:00", name: "Morning Shift" },
+        { start: "10:20", stop: "13:00", name: "Midday Shift" },
+        { start: "14:00", stop: "17:20", name: "Afternoon Shift" }
+      ],
+      5: [
+        { start: "08:15", stop: "10:00", name: "Morning Shift" },
+        { start: "10:20", stop: "12:30", name: "Midday Shift" },
+        { start: "14:30", stop: "17:20", name: "Afternoon Shift" }
+      ],
+      6: []
+    };
+
+    const state = {
+      cycleDurationSeconds: DEFAULT_CYCLE_SECONDS,
+      remainingSeconds: DEFAULT_CYCLE_SECONDS,
+      cycleInterval: null,
+      dailyPlan: 0,
+      planProduction: 0,
+      actualProduction: 0,
+      totalWorkingSeconds: 0,
+      manualStopped: false,
+      cycleRunning: false,
+      spatterTotal: 0,
+      spatterRecords: [],
+      respotTotal: 0,
+      respotRecords: [],
+      syncedAt: Date.now()
+    };
+
+    let firebaseLiveStateRef = null;
+    let isApplyingRemote = false;
+    let publishTimer = null;
+    let tvTicker = null;
+    let hasHydratedFromCloud = false;
+
+    if (IS_TV) {
+      document.body.classList.add("tv-mode");
+      document.title = "ISUZU Bodyshop Andon Â· TV";
+    }
+
+    const els = {
+      cycleTimer: document.getElementById("cycleTimer"),
+      totalCycleTime: document.getElementById("totalCycleTime"),
+      planCount: document.getElementById("planCount"),
+      actualCount: document.getElementById("actualCount"),
+      dailyPlanDisplay: document.getElementById("dailyPlanDisplay"),
+      differenceDisplay: document.getElementById("differenceDisplay"),
+      statusDisplay: document.getElementById("statusDisplay"),
+      timeDisplay: document.getElementById("timeDisplay"),
+      dateDisplay: document.getElementById("dateDisplay"),
+      spatterModelInput: document.getElementById("spatterModelInput"),
+      spatterLotInput: document.getElementById("spatterLotInput"),
+      spatterBodyInput: document.getElementById("spatterBodyInput"),
+      spatterInput: document.getElementById("spatterInput"),
+      spatterTotal: document.getElementById("spatterTotal"),
+      spatterHistory: document.getElementById("spatterHistory"),
+      respotModelInput: document.getElementById("respotModelInput"),
+      respotLotInput: document.getElementById("respotLotInput"),
+      respotBodyInput: document.getElementById("respotBodyInput"),
+      respotInput: document.getElementById("respotInput"),
+      respotTotal: document.getElementById("respotTotal"),
+      respotHistory: document.getElementById("respotHistory"),
+      syncBadge: document.getElementById("syncBadge"),
+      syncLabel: document.getElementById("syncLabel")
+    };
+
+    function setSyncStatus(mode, label) {
+      if (!els.syncBadge || !els.syncLabel) return;
+      els.syncBadge.classList.remove("online", "error");
+      if (mode) els.syncBadge.classList.add(mode);
+      els.syncLabel.textContent = label;
+    }
+
+    function formatMMSS(seconds) {
+      const safe = Math.max(0, Math.floor(seconds || 0));
+      const mins = Math.floor(safe / 60);
+      const secs = safe % 60;
+      return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    }
+
+    function formatMMM(seconds) {
+      return String(Math.floor(Math.max(0, seconds || 0) / 60)).padStart(3, "0");
+    }
+
+    function setDailyPlan() {
+      if (IS_TV) return;
+      const value = Number.parseInt(document.getElementById("dailyPlanInput").value, 10);
+      if (Number.isNaN(value) || value < 0) return;
+      state.dailyPlan = value;
+      updateDisplays(true);
+    }
+
+    function setCycleTime() {
+      if (IS_TV) return;
+      const input = document.getElementById("cycleMinutesInput");
+      if (!input) return;
+      const minutes = Number.parseFloat(input.value);
+      if (Number.isNaN(minutes) || minutes < 0.1) return;
+      state.cycleDurationSeconds = Math.round(minutes * 60);
+      if (!state.cycleRunning) {
+        state.remainingSeconds = state.cycleDurationSeconds;
+      }
+      updateDisplays(true);
+    }
+
+    function getCurrentMinutes() {
+      const now = new Date();
+      return now.getHours() * 60 + now.getMinutes();
+    }
+
+    function getTodaySchedule() {
+      const day = new Date().getDay();
+      return scheduleByDay[day] || [];
+    }
+
+    function getCurrentShiftName() {
+      const currentMinutes = getCurrentMinutes();
+      const todaySchedule = getTodaySchedule();
+
+      for (const period of todaySchedule) {
+        const [startHour, startMinute] = period.start.split(":").map(Number);
+        const [endHour, endMinute] = period.stop.split(":").map(Number);
+        const start = startHour * 60 + startMinute;
+        const end = endHour * 60 + endMinute;
+
+        if (currentMinutes >= start && currentMinutes < end) {
+          return period.name;
+        }
+      }
+
+      return "Closed";
+    }
+
+    function isShiftActive() {
+      return getCurrentShiftName() !== "Closed";
+    }
+
+    function updateDifference() {
+      const diff = state.actualProduction - state.planProduction;
+      els.differenceDisplay.textContent = diff > 0 ? `+${diff}` : String(diff);
+      els.differenceDisplay.classList.remove("positive", "negative", "neutral");
+
+      if (diff > 0) {
+        els.differenceDisplay.classList.add("positive");
+      } else if (diff < 0) {
+        els.differenceDisplay.classList.add("negative");
+      } else {
+        els.differenceDisplay.classList.add("neutral");
+      }
+    }
+
+    function setStatus(text, color, shadow) {
+      els.statusDisplay.textContent = text;
+      els.statusDisplay.style.color = color;
+      els.statusDisplay.style.textShadow = shadow;
+    }
+
+    function updateStatus() {
+      if (state.dailyPlan > 0 && state.actualProduction >= state.dailyPlan) {
+        setStatus("Target Achieved", "#86efac", "0 0 20px rgba(34,197,94,0.35)");
+        return;
+      }
+
+      if (state.cycleRunning) {
+        setStatus("Running", "#86efac", "0 0 20px rgba(34,197,94,0.35)");
+        return;
+      }
+
+      if (state.manualStopped) {
+        setStatus("Line Stopped", "#fca5a5", "0 0 20px rgba(239,68,68,0.28)");
+        return;
+      }
+
+      if (isShiftActive()) {
+        setStatus("Ready", "#f59e0b", "0 0 20px rgba(245,158,11,0.28)");
+      } else {
+        setStatus("Line Stopped", "#fca5a5", "0 0 20px rgba(239,68,68,0.28)");
+      }
+    }
+
+    function getDisplayRemainingSeconds() {
+      if (!IS_TV || !state.cycleRunning) return state.remainingSeconds;
+      const elapsed = Math.floor((Date.now() - (state.syncedAt || Date.now())) / 1000);
+      return Math.max(0, state.remainingSeconds - elapsed);
+    }
+
+    function updateDisplays(shouldPublish) {
+      els.cycleTimer.textContent = formatMMSS(getDisplayRemainingSeconds());
+      els.totalCycleTime.textContent = formatMMM(state.totalWorkingSeconds);
+      els.planCount.textContent = state.planProduction;
+      els.actualCount.textContent = state.actualProduction;
+      els.dailyPlanDisplay.textContent = state.dailyPlan;
+      updateSpatterHistory();
+      updateRespotHistory();
+      updateDifference();
+      updateStatus();
+
+      if (shouldPublish && !IS_TV) {
+        queuePublishLiveState();
+      }
+    }
+
+    function buildLiveStatePayload() {
+      return {
+        dateKey: todayKey,
+        cycleDurationSeconds: state.cycleDurationSeconds,
+        remainingSeconds: state.remainingSeconds,
+        dailyPlan: state.dailyPlan,
+        planProduction: state.planProduction,
+        actualProduction: state.actualProduction,
+        totalWorkingSeconds: state.totalWorkingSeconds,
+        manualStopped: state.manualStopped,
+        cycleRunning: state.cycleRunning,
+        spatterRecords: state.spatterRecords,
+        respotRecords: state.respotRecords,
+        sender: syncClientId,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      };
+    }
+
+    function queuePublishLiveState() {
+      if (!firebaseLiveStateRef || isApplyingRemote || IS_TV) return;
+      if (publishTimer) clearTimeout(publishTimer);
+      publishTimer = setTimeout(publishLiveStateNow, 120);
+    }
+
+    function publishLiveStateNow() {
+      if (!firebaseLiveStateRef || isApplyingRemote || IS_TV) return;
+      firebaseLiveStateRef
+        .set(buildLiveStatePayload())
+        .then(() => setSyncStatus("online", "Firebase synced"))
+        .catch((err) => {
+          console.error(err);
+          setSyncStatus("error", "Sync write failed");
+        });
+    }
+
+    function stopTvTicker() {
+      if (tvTicker) {
+        clearInterval(tvTicker);
+        tvTicker = null;
+      }
+    }
+
+    function startTvTicker() {
+      stopTvTicker();
+      if (!IS_TV || !state.cycleRunning) return;
+      tvTicker = setInterval(() => {
+        els.cycleTimer.textContent = formatMMSS(getDisplayRemainingSeconds());
+        updateStatus();
+      }, 250);
+    }
+
+    function applyLiveState(live) {
+      if (!live || typeof live !== "object") return;
+
+      isApplyingRemote = true;
+
+      state.cycleDurationSeconds = Number(live.cycleDurationSeconds) || DEFAULT_CYCLE_SECONDS;
+      state.remainingSeconds = Number(live.remainingSeconds) || 0;
+      state.dailyPlan = Number(live.dailyPlan) || 0;
+      state.planProduction = Number(live.planProduction) || 0;
+      state.actualProduction = Number(live.actualProduction) || 0;
+      state.totalWorkingSeconds = Number(live.totalWorkingSeconds) || 0;
+      state.manualStopped = !!live.manualStopped;
+      state.cycleRunning = !!live.cycleRunning;
+      state.syncedAt = Number(live.updatedAt) || Date.now();
+      state.spatterRecords = Array.isArray(live.spatterRecords) ? live.spatterRecords : [];
+      state.respotRecords = Array.isArray(live.respotRecords) ? live.respotRecords : [];
+      state.spatterTotal = state.spatterRecords.reduce((sum, record) => sum + Number(record.qty || 0), 0);
+      state.respotTotal = state.respotRecords.reduce((sum, record) => sum + Number(record.qty || 0), 0);
+
+      if (!IS_TV) {
+        if (state.cycleRunning && !state.cycleInterval) {
+          state.cycleInterval = setInterval(tickCycle, 1000);
+        }
+        if (!state.cycleRunning && state.cycleInterval) {
+          clearInterval(state.cycleInterval);
+          state.cycleInterval = null;
+        }
+      } else {
+        startTvTicker();
+      }
+
+      updateDisplays(false);
+      isApplyingRemote = false;
+      hasHydratedFromCloud = true;
+      setSyncStatus("online", IS_TV ? "TV linked to Master" : "Master linked to cloud");
+    }
+
+    function initFirebaseSync() {
+      if (!window.firebase || !firebase.database) {
+        setSyncStatus("error", "Firebase SDK missing");
+        return;
+      }
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(FIREBASE_CONFIG);
+        }
+        firebaseLiveStateRef = firebase.database().ref(LIVE_STATE_PATH);
+        firebase.database().ref(".info/connected").on("value", (snap) => {
+          if (snap.val()) {
+            setSyncStatus("online", IS_TV ? "TV connected" : "Master connected");
+          } else {
+            setSyncStatus("error", "Offline");
+          }
+        });
+
+        firebaseLiveStateRef.on("value", (snapshot) => {
+          const live = snapshot.val();
+          if (!live) {
+            hasHydratedFromCloud = true;
+            if (!IS_TV) queuePublishLiveState();
+            return;
+          }
+          if (live.sender === syncClientId && hasHydratedFromCloud) return;
+          applyLiveState(live);
+        });
+      } catch (error) {
+        console.error(error);
+        setSyncStatus("error", "Firebase init failed");
+      }
+    }
+
+    function tickCycle() {
+      if (IS_TV) return;
+
+      if (state.dailyPlan > 0 && state.planProduction >= state.dailyPlan) {
+        stopCycle();
+        return;
+      }
+
+      if (!isShiftActive()) {
+        autoStopCycle();
+        return;
+      }
+
+      state.totalWorkingSeconds += 1;
+
+      if (state.remainingSeconds > 0) {
+        state.remainingSeconds -= 1;
+      } else {
+        state.planProduction += 1;
+
+        if (state.dailyPlan > 0 && state.planProduction >= state.dailyPlan) {
+          state.remainingSeconds = 0;
+          stopCycle();
+          updateDisplays(true);
+          return;
+        }
+
+        state.remainingSeconds = state.cycleDurationSeconds;
+      }
+
+      updateDisplays(true);
+    }
+
+    function startCycle() {
+      if (IS_TV) return;
+      if (state.cycleInterval) return;
+      if (!isShiftActive()) return;
+      if (state.dailyPlan > 0 && state.planProduction >= state.dailyPlan) return;
+
+      state.manualStopped = false;
+      state.cycleRunning = true;
+      state.cycleInterval = setInterval(tickCycle, 1000);
+      updateDisplays(true);
+    }
+
+    function stopCycle() {
+      if (IS_TV) return;
+      if (!state.cycleInterval && !state.cycleRunning) return;
+      if (state.cycleInterval) clearInterval(state.cycleInterval);
+      state.cycleInterval = null;
+      state.cycleRunning = false;
+      state.manualStopped = true;
+      updateDisplays(true);
+    }
+
+    function addActual() {
+      if (IS_TV) return;
+      state.actualProduction += 1;
+      updateDisplays(true);
+    }
+
+    function resetPlan() {
+      if (IS_TV) return;
+      state.planProduction = 0;
+      updateDisplays(true);
+    }
+
+    function resetActual() {
+      if (IS_TV) return;
+      state.actualProduction = 0;
+      updateDisplays(true);
+    }
+
+    function saveSpatterToStorage() {
+      localStorage.setItem(SPATTER_STORAGE_KEY, JSON.stringify(state.spatterRecords));
+    }
+
+    function loadSpatterFromStorage() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(SPATTER_STORAGE_KEY) || "[]");
+        if (Array.isArray(saved)) {
+          state.spatterRecords = saved;
+          state.spatterTotal = saved.reduce((sum, record) => sum + Number(record.qty || 0), 0);
+        }
+      } catch (error) {
+        state.spatterRecords = [];
+        state.spatterTotal = 0;
+      }
+    }
+
+    function updateSpatterHistory() {
+      const total = state.spatterRecords.reduce((sum, record) => sum + Number(record.qty || 0), 0);
+      state.spatterTotal = total;
+      els.spatterTotal.textContent = total;
+
+      if (state.spatterRecords.length === 0) {
+        els.spatterHistory.innerHTML = '<div class="history-empty">No record yet</div>';
+        return;
+      }
+
+      els.spatterHistory.innerHTML = state.spatterRecords
+        .slice()
+        .reverse()
+        .map((record) => `
+          <div class="history-item">
+            <span class="history-small">${record.time || "-"}</span>
+            <span class="history-small" title="${record.model || "-"}">${record.model || "-"}</span>
+            <span class="history-small" title="${record.lot || "-"}">${record.lot || "-"}</span>
+            <span class="history-small">${record.body || "-"}</span>
+            <span class="history-qty">${record.qty}</span>
+          </div>
+        `)
+        .join("");
+    }
+
+    function saveSpatter(event) {
+      if (IS_TV) return;
+      event.stopPropagation();
+
+      const qty = Number.parseInt(els.spatterInput.value, 10);
+      const body = Number.parseInt(els.spatterBodyInput.value, 10);
+
+      if (Number.isNaN(qty) || qty < 0) return;
+      if (!Number.isNaN(body) && (body < 1 || body > 12)) return;
+
+      const record = {
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+        model: els.spatterModelInput.value.trim(),
+        lot: els.spatterLotInput.value.trim(),
+        body: Number.isNaN(body) ? "" : body,
+        qty
+      };
+
+      state.spatterRecords.push(record);
+      saveSpatterToStorage();
+      els.spatterInput.value = "";
+      updateDisplays(true);
+    }
+
+    function resetSpatter(event) {
+      if (IS_TV) return;
+      event.stopPropagation();
+      state.spatterTotal = 0;
+      state.spatterRecords = [];
+      els.spatterModelInput.value = "";
+      els.spatterLotInput.value = "";
+      els.spatterBodyInput.value = "";
+      els.spatterInput.value = "";
+      saveSpatterToStorage();
+      updateDisplays(true);
+    }
+
+    function saveRespotToStorage() {
+      localStorage.setItem(RESPOT_STORAGE_KEY, JSON.stringify(state.respotRecords));
+    }
+
+    function loadRespotFromStorage() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(RESPOT_STORAGE_KEY) || "[]");
+        if (Array.isArray(saved)) {
+          state.respotRecords = saved;
+          state.respotTotal = saved.reduce((sum, record) => sum + Number(record.qty || 0), 0);
+        }
+      } catch (error) {
+        state.respotRecords = [];
+        state.respotTotal = 0;
+      }
+    }
+
+    function updateRespotHistory() {
+      const total = state.respotRecords.reduce((sum, record) => sum + Number(record.qty || 0), 0);
+      state.respotTotal = total;
+      els.respotTotal.textContent = total;
+
+      if (state.respotRecords.length === 0) {
+        els.respotHistory.innerHTML = '<div class="history-empty">No record yet</div>';
+        return;
+      }
+
+      els.respotHistory.innerHTML = state.respotRecords
+        .slice()
+        .reverse()
+        .map((record) => `
+          <div class="history-item">
+            <span class="history-small">${record.time || "-"}</span>
+            <span class="history-small" title="${record.model || "-"}">${record.model || "-"}</span>
+            <span class="history-small" title="${record.lot || "-"}">${record.lot || "-"}</span>
+            <span class="history-small">${record.body || "-"}</span>
+            <span class="history-qty">${record.qty}</span>
+          </div>
+        `)
+        .join("");
+    }
+
+    function saveRespot(event) {
+      if (IS_TV) return;
+      event.stopPropagation();
+
+      const qty = Number.parseInt(els.respotInput.value, 10);
+      const body = Number.parseInt(els.respotBodyInput.value, 10);
+
+      if (Number.isNaN(qty) || qty < 0) return;
+      if (!Number.isNaN(body) && (body < 1 || body > 12)) return;
+
+      const record = {
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+        model: els.respotModelInput.value.trim(),
+        lot: els.respotLotInput.value.trim(),
+        body: Number.isNaN(body) ? "" : body,
+        qty
+      };
+
+      state.respotRecords.push(record);
+      saveRespotToStorage();
+      els.respotInput.value = "";
+      updateDisplays(true);
+    }
+
+    function resetRespot(event) {
+      if (IS_TV) return;
+      event.stopPropagation();
+      state.respotTotal = 0;
+      state.respotRecords = [];
+      els.respotModelInput.value = "";
+      els.respotLotInput.value = "";
+      els.respotBodyInput.value = "";
+      els.respotInput.value = "";
+      saveRespotToStorage();
+      updateDisplays(true);
+    }
+
+    function autoStopCycle() {
+      if (IS_TV) return;
+      if (state.cycleInterval) {
+        clearInterval(state.cycleInterval);
+        state.cycleInterval = null;
+      }
+      state.cycleRunning = false;
+      state.manualStopped = false;
+      updateDisplays(true);
+    }
+
+    function updateDateTime() {
+      const now = new Date();
+
+      els.timeDisplay.textContent = now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+
+      els.dateDisplay.textContent = now.toLocaleDateString([], {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric"
+      });
+
+      updateStatus();
+    }
+
+    function matchesNow(dayIndex, timeString) {
+      const now = new Date();
+      const currentDay = now.getDay();
+      const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      return currentDay === dayIndex && hhmm === timeString && now.getSeconds() === 0;
+    }
+
+    function checkAutoSchedule() {
+      if (IS_TV) return;
+      const dayIndex = new Date().getDay();
+      const todayPeriods = scheduleByDay[dayIndex] || [];
+
+      for (const period of todayPeriods) {
+        if (matchesNow(dayIndex, period.start)) {
+          startCycle();
+        }
+        if (matchesNow(dayIndex, period.stop)) {
+          autoStopCycle();
+        }
+      }
+    }
+
+    function saveDailyRecord() {
+      if (IS_TV || !window.firebase) return;
+      const payload = {
+        dateKey: todayKey,
+        dailyPlan: state.dailyPlan,
+        planProduction: state.planProduction,
+        actualProduction: state.actualProduction,
+        totalWorkingSeconds: state.totalWorkingSeconds,
+        spatterTotal: state.spatterTotal,
+        respotTotal: state.respotTotal,
+        spatterRecords: state.spatterRecords,
+        respotRecords: state.respotRecords,
+        savedAt: firebase.database.ServerValue.TIMESTAMP,
+        sender: syncClientId
+      };
+
+      firebase
+        .database()
+        .ref("andon/dailyRecords/" + todayKey)
+        .set(payload)
+        .then(() => setSyncStatus("online", "Daily record saved"))
+        .catch(() => setSyncStatus("error", "Daily save failed"));
+    }
+
+    setInterval(() => {
+      updateDateTime();
+      checkAutoSchedule();
+    }, 1000);
+
+    if (!IS_TV) {
+      loadSpatterFromStorage();
+      loadRespotFromStorage();
+    }
+
+    updateDateTime();
+    updateDisplays(false);
+    initFirebaseSync();
+
+    document.addEventListener("click", function (event) {
+      if (IS_TV) return;
+      if (
+        event.target.closest("button") ||
+        event.target.closest("input") ||
+        event.target.closest(".spatter-box") ||
+        event.target.closest(".sync-badge")
+      ) {
+        return;
+      }
+
+      addActual();
+    });
+  </script>
+</body>
+</html>
+
