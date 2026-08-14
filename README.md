@@ -4,9 +4,9 @@ Real-time factory Andon for Body Assy. Master PC writes live production data; TV
 
 ## Live links
 
-- GitHub: https://github.com/muhdsyhmi35-max/Body-Assy
-- Firebase console: https://console.firebase.google.com/project/body-assy-andon/overview
-- Hosting (after deploy): https://body-assy-andon.web.app
+- GitHub: https://github.com/Syakir59/Body-Assy
+- Firebase console: https://console.firebase.google.com/project/body-assy---andon/overview
+- Hosting: https://body-assy---andon.web.app
 
 ## Files
 
@@ -28,19 +28,15 @@ Real-time factory Andon for Body Assy. Master PC writes live production data; TV
 
 Configured for:
 
-- Project ID: `body-assy-andon`
-- Database: `https://body-assy-andon-default-rtdb.asia-southeast1.firebasedatabase.app`
+- Project ID: `body-assy---andon`
+- Database: `https://body-assy---andon-default-rtdb.asia-southeast1.firebasedatabase.app`
 
 ## Deploy
 
 ```bash
-firebase deploy --only database,hosting --project body-assy-andon
+firebase deploy --only database,hosting --project body-assy---andon
 ```
 
 ## Security note
 
 Current Realtime Database rules allow open read/write for testing. Before production, tighten rules and get IT approval.
-
-## Note about the older Firebase link
-
-The console URL `body-assy---andon` is a different Firebase project and was not accessible from the CLI account used here (`muhdsyhmi35@gmail.com`). This app is published against the new accessible project `body-assy-andon`.
