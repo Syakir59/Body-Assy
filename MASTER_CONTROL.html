@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ISUZU Bodyshop Andon Â· Master</title>
+  <title>ISUZU Bodyshop Andon · Master</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
   <style>
@@ -1146,14 +1149,14 @@ body { zoom: 0.9; }
     function queuePublishLiveState() {
       if (!firebaseLiveStateRef || isApplyingRemote || IS_TV) return;
       if (publishTimer) clearTimeout(publishTimer);
-      publishTimer = setTimeout(publishLiveStateNow, 120);
+      publishTimer = setTimeout(publishLiveStateNow, 40);
     }
 
     function publishLiveStateNow() {
       if (!firebaseLiveStateRef || isApplyingRemote || IS_TV) return;
       firebaseLiveStateRef
-        .set(buildLiveStatePayload())
-        .then(() => setSyncStatus("online", "Firebase synced"))
+        .update(buildLiveStatePayload())
+        .then(() => setSyncStatus("online", "Live sync ON"))
         .catch((err) => {
           console.error(err);
           setSyncStatus("error", "Sync write failed");
@@ -1169,11 +1172,15 @@ body { zoom: 0.9; }
 
     function startTvTicker() {
       stopTvTicker();
-      if (!IS_TV || !state.cycleRunning) return;
+      if (!IS_TV) return;
       tvTicker = setInterval(() => {
         els.cycleTimer.textContent = formatMMSS(getDisplayRemainingSeconds());
+        if (state.cycleRunning) {
+          const elapsed = Math.floor((Date.now() - (state.syncedAt || Date.now())) / 1000);
+          els.totalCycleTime.textContent = formatMMM(state.totalWorkingSeconds + Math.max(0, elapsed));
+        }
         updateStatus();
-      }, 250);
+      }, 200);
     }
 
     function applyLiveState(live) {
@@ -1210,7 +1217,7 @@ body { zoom: 0.9; }
       updateDisplays(false);
       isApplyingRemote = false;
       hasHydratedFromCloud = true;
-      setSyncStatus("online", IS_TV ? "TV linked to Master" : "Master linked to cloud");
+      setSyncStatus("online", IS_TV ? "Following Master live" : "Live sync ON");
     }
 
     function initFirebaseSync() {
@@ -1224,14 +1231,17 @@ body { zoom: 0.9; }
           firebase.initializeApp(FIREBASE_CONFIG);
         }
         firebaseLiveStateRef = firebase.database().ref(LIVE_STATE_PATH);
+
         firebase.database().ref(".info/connected").on("value", (snap) => {
           if (snap.val()) {
             setSyncStatus("online", IS_TV ? "TV connected" : "Master connected");
+            if (!IS_TV) queuePublishLiveState();
           } else {
             setSyncStatus("error", "Offline");
           }
         });
 
+        // Realtime listener: TV always mirrors Master.
         firebaseLiveStateRef.on("value", (snapshot) => {
           const live = snapshot.val();
           if (!live) {
@@ -1239,9 +1249,27 @@ body { zoom: 0.9; }
             if (!IS_TV) queuePublishLiveState();
             return;
           }
-          if (live.sender === syncClientId && hasHydratedFromCloud) return;
+          if (!IS_TV && live.sender === syncClientId && hasHydratedFromCloud) return;
           applyLiveState(live);
         });
+
+        // Master heartbeat: push every second so TV never goes stale.
+        if (!IS_TV) {
+          setInterval(() => {
+            if (!isApplyingRemote) queuePublishLiveState();
+          }, 1000);
+        }
+
+        // TV backup poll: re-read cloud every second if websocket glitches.
+        if (IS_TV) {
+          setInterval(() => {
+            firebaseLiveStateRef.once("value").then((snapshot) => {
+              const live = snapshot.val();
+              if (live) applyLiveState(live);
+            }).catch(() => setSyncStatus("error", "TV poll failed"));
+          }, 1000);
+          startTvTicker();
+        }
       } catch (error) {
         console.error(error);
         setSyncStatus("error", "Firebase init failed");
